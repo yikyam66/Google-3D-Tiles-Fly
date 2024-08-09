@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New York landmark building flight experience and route线</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
+    <link href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=GMP_API_KEY"></script>
+    <style>
+        #cesiumContainer {
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    <script>
+        // 初始化Cesium查看器
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            imageryProvider: false,
+            baseLayerPicker: false,
+            requestRenderMode: true,
+        });
+
+        // 添加Google的Photorealistic 3D Tiles
+        const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
+            url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=GMP_API_KEY",
+            showCreditsOnScreen: true,
+        }));
+
+        // 隐藏地球仪，只显示3D Tiles
+        viewer.scene.globe.show = false;
+
+        // 定义起点（平板大厦）和终点（帝国大厦）
+        const flatironPosition = Cesium.Cartesian3.fromDegrees(-73.9897, 40.7410, 140);
+        const empireStatePosition = Cesium.Cartesian3.fromDegrees(-73.9857, 40.7484, 500);
+
+        // 设置初始相机位置
+        viewer.camera.setView({
+            destination: flatironPosition,
+            orientation: {
+                heading: Cesium.Math.toRadians(45),
+                pitch: Cesium.Math.toRadians(-70),
+                roll: 0.0
+            }
+        });
+
+        // 创建飞行路径
+        const flightPath = {
+            duration: 30,
+            destination: empireStatePosition,
+            orientation: {
+                heading: Cesium.Math.toRadians(0),
+                pitch: Cesium.Math.toRadians(-70),
+                roll: 0.0
+            }
+        };
+
+        // 使用Google Maps Directions API获取路线
+        function getRoute() {
+            const directionsService = new google.maps.DirectionsService();
+            const request = {
+                origin: new google.maps.LatLng(40.7410, -73.9897),
+                destination: new google.maps.LatLng(40.7484, -73.9857),
+                travelMode: google.maps.TravelMode.WALKING
+            };
+
+            directionsService.route(request, function(result, status) {
+                if (status === google.maps.DirectionsStatus.OK) {
+                    const route = result.routes[0].overview_path;
+                    const cesiumRoute = route.map(point => Cesium.Cartesian3.fromDegrees(point.lng(), point.lat(), 50));
+
+                    // 在Cesium中添加路线
+                    viewer.entities.add({
+                        polyline: {
+                            positions: cesiumRoute,
+                            width: 5,
+                            material: Cesium.Color.BLUE,
+                            clampToGround: true
+                        }
+                    });
+
+                    // 开始飞行
+                    setTimeout(() => {
+                        viewer.camera.flyTo(flightPath);
+                    }, 3000);
+                }
+            });
+        }
+
+        // 调用获取路线函数
+        getRoute();
+
+        // 添加键盘控制
+        document.addEventListener('keydown', function(e) {
+            switch(e.keyCode) {
+                case 38: viewer.camera.moveForward(10); break;
+                case 40: viewer.camera.moveBackward(10); break;
+                case 37: viewer.camera.moveLeft(10); break;
+                case 39: viewer.camera.moveRight(10); break;
+                case 87: viewer.camera.lookUp(Cesium.Math.toRadians(1)); break;
+                case 83: viewer.camera.lookDown(Cesium.Math.toRadians(1)); break;
+                case 65: viewer.camera.twistLeft(Cesium.Math.toRadians(1)); break;
+                case 68: viewer.camera.twistRight(Cesium.Math.toRadians(1)); break;
+            }
+        });
+    </script>
+</body>
+</html>
