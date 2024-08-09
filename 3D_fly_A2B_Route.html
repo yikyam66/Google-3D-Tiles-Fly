@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><title>New York landmark building flight experience and route</title></title>
+    <title>New York landmark building flight experience and route</title>
+    <!-- Load Cesium library and styles -->
     <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
     <link href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    <script src="https://maps.googleapis.com/maps/api/js?key=GMP_API_KEY"></script>
     <style>
+        /* Set the Cesium container to full viewport size */
         #cesiumContainer {
             width: 100%;
             height: 100vh;
@@ -20,94 +21,138 @@
 <body>
     <div id="cesiumContainer"></div>
     <script>
-        // 初始化Cesium查看器
+        // Replace with your actual Google Maps API key
+        const GOOGLE_MAPS_API_KEY = 'GMP_API_KEY';
+
+        // Function to load Google Maps API dynamically
+        function loadGoogleMapsAPI() {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Initialize Cesium viewer with custom options
         const viewer = new Cesium.Viewer('cesiumContainer', {
             imageryProvider: false,
             baseLayerPicker: false,
+            homeButton: false,
+            infoBox: false,
+            sceneModePicker: false,
+            selectionIndicator: false,
+            timeline: false,
+            navigationHelpButton: false,
+            animation: false,
+            creditContainer: "cesiumContainer",
             requestRenderMode: true,
         });
 
-        // 添加Google的Photorealistic 3D Tiles
+        // Add Google's Photorealistic 3D Tiles
         const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-            url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=GMP_API_KEY",
+            url: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_MAPS_API_KEY}`,
             showCreditsOnScreen: true,
         }));
 
-        // 隐藏地球仪，只显示3D Tiles
+        // Hide the globe to only show 3D Tiles
         viewer.scene.globe.show = false;
 
-        // 定义起点（平板大厦）和终点（帝国大厦）
-        const flatironPosition = Cesium.Cartesian3.fromDegrees(-73.9897, 40.7410, 140);
-        const empireStatePosition = Cesium.Cartesian3.fromDegrees(-73.9857, 40.7484, 500);
-
-        // 设置初始相机位置
-        viewer.camera.setView({
-            destination: flatironPosition,
-            orientation: {
-                heading: Cesium.Math.toRadians(45),
-                pitch: Cesium.Math.toRadians(-70),
-                roll: 0.0
-            }
-        });
-
-        // 创建飞行路径
-        const flightPath = {
-            duration: 30,
-            destination: empireStatePosition,
-            orientation: {
-                heading: Cesium.Math.toRadians(0),
-                pitch: Cesium.Math.toRadians(-70),
-                roll: 0.0
-            }
-        };
-
-        // 使用Google Maps Directions API获取路线
+        // Function to get route using Google Maps Directions API
         function getRoute() {
             const directionsService = new google.maps.DirectionsService();
             const request = {
-                origin: new google.maps.LatLng(40.7410, -73.9897),
-                destination: new google.maps.LatLng(40.7484, -73.9857),
+                origin: new google.maps.LatLng(40.7410, -73.9897), // Flatiron Building
+                destination: new google.maps.LatLng(40.7484, -73.9857), // Empire State Building
                 travelMode: google.maps.TravelMode.WALKING
             };
 
             directionsService.route(request, function(result, status) {
                 if (status === google.maps.DirectionsStatus.OK) {
                     const route = result.routes[0].overview_path;
-                    const cesiumRoute = route.map(point => Cesium.Cartesian3.fromDegrees(point.lng(), point.lat(), 50));
+                    const cesiumRoute = route.map(point => Cesium.Cartesian3.fromDegrees(point.lng(), point.lat(), 200));
 
-                    // 在Cesium中添加路线
+                    // Add route to Cesium as a blue polyline
                     viewer.entities.add({
                         polyline: {
                             positions: cesiumRoute,
                             width: 5,
-                            material: Cesium.Color.BLUE,
+                            material: Cesium.Color.RED,
                             clampToGround: true
                         }
                     });
 
-                    // 开始飞行
-                    setTimeout(() => {
-                        viewer.camera.flyTo(flightPath);
-                    }, 3000);
+                    flyAlongRoute(cesiumRoute);
                 }
             });
         }
 
-        // 调用获取路线函数
-        getRoute();
+        // Function to control camera flight along the route
+        function flyAlongRoute(route) {
+            const speed = 20; // Flight speed (meters/second)
+            let distanceTraveled = 0;
+            const segmentLengths = [];
+            const totalDistance = calculateTotalDistance(route, segmentLengths);
 
-        // 添加键盘控制
-        document.addEventListener('keydown', function(e) {
-            switch(e.keyCode) {
-                case 38: viewer.camera.moveForward(10); break;
-                case 40: viewer.camera.moveBackward(10); break;
-                case 37: viewer.camera.moveLeft(10); break;
-                case 39: viewer.camera.moveRight(10); break;
-                case 87: viewer.camera.lookUp(Cesium.Math.toRadians(1)); break;
-                case 83: viewer.camera.lookDown(Cesium.Math.toRadians(1)); break;
-                case 65: viewer.camera.twistLeft(Cesium.Math.toRadians(1)); break;
-                case 68: viewer.camera.twistRight(Cesium.Math.toRadians(1)); break;
+            viewer.clock.onTick.addEventListener((clock) => {
+                distanceTraveled += speed * (clock.multiplier / 30);
+                if (distanceTraveled > totalDistance) {
+                    distanceTraveled = 0;
+                }
+
+                const position = interpolatePosition(route, distanceTraveled, segmentLengths, totalDistance);
+                
+                viewer.scene.camera.setView({
+                    destination: position,
+                    orientation: {
+                        heading: Cesium.Math.toRadians(0),
+                        pitch: Cesium.Math.toRadians(-70),
+                        roll: 0
+                    }
+                });
+            });
+
+            viewer.clock.multiplier = 1;
+            viewer.clock.shouldAnimate = true;
+        }
+
+        // Calculate total distance of the route and segment lengths
+        function calculateTotalDistance(route, segmentLengths) {
+            let totalDistance = 0;
+            for (let i = 1; i < route.length; i++) {
+                const segmentLength = Cesium.Cartesian3.distance(route[i - 1], route[i]);
+                segmentLengths.push(segmentLength);
+                totalDistance += segmentLength;
             }
+            return totalDistance;
+        }
+
+        // Interpolate position along the route based on distance traveled
+        function interpolatePosition(route, distanceTraveled, segmentLengths, totalDistance) {
+            let accumulatedDistance = 0;
+            for (let i = 0; i < segmentLengths.length; i++) {
+                if (accumulatedDistance + segmentLengths[i] > distanceTraveled) {
+                    const segmentFraction = (distanceTraveled - accumulatedDistance) / segmentLengths[i];
+                    const start = route[i];
+                    const end = route[i + 1];
+
+                    const x = Cesium.Math.lerp(start.x, end.x, segmentFraction);
+                    const y = Cesium.Math.lerp(start.y, end.y, segmentFraction);
+                    const z = Cesium.Math.lerp(start.z, end.z, segmentFraction);
+
+                    return new Cesium.Cartesian3(x, y, z);
+                }
+                accumulatedDistance += segmentLengths[i];
+            }
+            return route[route.length - 1];
+        }
+
+        // Load Google Maps API and then get the route
+        loadGoogleMapsAPI().then(() => {
+            getRoute();
+        }).catch(error => {
+            console.error('Failed to load Google Maps API:', error);
         });
     </script>
 </body>
