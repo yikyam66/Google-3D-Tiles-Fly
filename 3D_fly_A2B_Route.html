@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><title>New York landmark building flight experience and route线</title></title>
+    <title><title>New York landmark building flight experience and route</title></title>
     <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
     <link href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCQcKZt40Eya9BQySBJL90zQBpNczik0bo"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=GMP_API_KEY"></script>
     <style>
         #cesiumContainer {
             width: 100%;
@@ -29,7 +29,7 @@
 
         // 添加Google的Photorealistic 3D Tiles
         const tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-            url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=AIzaSyCQcKZt40Eya9BQySBJL90zQBpNczik0bo",
+            url: "https://tile.googleapis.com/v1/3dtiles/root.json?key=GMP_API_KEY",
             showCreditsOnScreen: true,
         }));
 
