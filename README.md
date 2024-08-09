@@ -1,5 +1,7 @@
 # New York Landmark Building Flight Experience and Route
 
+<img width="1099" alt="螢幕截圖 2024-08-09 下午4 34 41" src="https://github.com/user-attachments/assets/8f8e3d4e-57cf-43c6-b6c3-52d6a9000b13">
+
 This project creates an interactive 3D visualization of a flight path between two iconic New York City landmarks: the Flatiron Building and the Empire State Building. It uses Cesium for 3D rendering and Google Maps API for route calculation.
 
 ### Features:
